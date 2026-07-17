@@ -34,15 +34,12 @@ export class UrlController {
   // ── Go link (/go/:code) — records click, then shows preview UI ───────
 
   @Get('go/:code')
-  async goRedirect(
+  goRedirect(
     @Param('code') code: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    // Verify the URL exists.
-    await this.urlService.resolveOriginalUrl(code);
-
-    // Record click — full analytics tracking.
+    // Record click — fully fire-and-forget, never blocks the redirect.
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const metadata = {
       ipAddress: ip,
@@ -52,14 +49,14 @@ export class UrlController {
 
     this.bloomFilter.isNewIp(code, ip).then((isNew) => {
       if (isNew) trackUniqueVisitor(code);
-    });
+    }).catch(() => {});
 
     this.analyticsService.recordClick(code, metadata).catch(() => {});
     this.urlService.incrementClicks(code).catch(() => {});
     this.topK.recordClick(code).catch(() => {});
 
-    // Redirect to preview page — user sees URL info + analytics,
-    // then clicks "Visit Link" to go to the original URL.
+    // Redirect immediately to preview page. No await — the SPA /:code page
+    // handles showing "URL Not Found" if the code doesn't exist.
     const baseUrl = this.baseUrlFromEnv();
     return res.redirect(HttpStatus.FOUND, `${baseUrl}/${code}`);
   }
