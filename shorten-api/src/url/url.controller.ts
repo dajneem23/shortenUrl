@@ -31,17 +31,18 @@ export class UrlController {
     private readonly topK: TopKService,
   ) {}
 
-  // ── Redirect endpoint (/go/:code) — click-through from detail page ──
+  // ── Go link (/go/:code) — shows preview UI with click tracking ──────
 
   @Get('go/:code')
-  async redirect(
+  async goToPreview(
     @Param('code') code: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    const originalUrl = await this.urlService.resolveOriginalUrl(code);
+    // Resolve to verify the URL exists.
+    await this.urlService.resolveOriginalUrl(code);
 
-    // Record click async — don't block the redirect.
+    // Record click async (don't block the redirect).
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const metadata = {
       ipAddress: ip,
@@ -49,18 +50,18 @@ export class UrlController {
       referer: req.headers['referer'] || null,
     };
 
-    // Check Bloom filter for unique IP tracking.
     this.bloomFilter.isNewIp(code, ip).then((isNew) => {
-      if (isNew) {
-        trackUniqueVisitor(code);
-      }
+      if (isNew) trackUniqueVisitor(code);
     });
 
     this.analyticsService.recordClick(code, metadata).catch(() => {});
     this.urlService.incrementClicks(code).catch(() => {});
     this.topK.recordClick(code).catch(() => {});
 
-    return res.redirect(HttpStatus.FOUND, originalUrl);
+    // Redirect to the preview/detail page — user sees the URL info
+    // before clicking "Visit Link" to go to the original URL.
+    const baseUrl = this.baseUrlFromEnv();
+    return res.redirect(HttpStatus.FOUND, `${baseUrl}/${code}`);
   }
 
   // ── REST API ─────────────────────────────────────────────────────────
