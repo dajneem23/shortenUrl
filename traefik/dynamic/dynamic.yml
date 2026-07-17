@@ -1,15 +1,17 @@
 # Traefik dynamic routing — shortenUrl.
+#   /:code         → SPA detail page (preview UI)
+#   /go/:code      → API redirect + tracking
+#   /api/*         → API REST endpoints
+#   /metrics, /health → API observability
 http:
   routers:
-    # API: REST, metrics, health, AND short-code redirects (/:code).
-    # PathRegexp matches nanoid-style codes (3-8 chars) so they go to the API
-    # for redirect instead of being caught by the SPA catch-all.
+    # API: REST, metrics, health, AND go-redirects (/go/:code).
     api:
-      rule: "PathPrefix(`/api`) || PathPrefix(`/metrics`) || PathPrefix(`/health`) || PathRegexp(`^/[a-zA-Z0-9_-]{3,8}$`)"
+      rule: "PathPrefix(`/api`) || PathPrefix(`/metrics`) || PathPrefix(`/health`) || PathPrefix(`/go`)"
       entryPoints: [web]
       service: api
 
-    # Observability UIs (profile-gated — only reachable when services are up).
+    # Observability UIs (profile-gated).
     grafana:
       rule: "PathPrefix(`/grafana`)"
       entryPoints: [web]
@@ -19,7 +21,7 @@ http:
       entryPoints: [web]
       service: prometheus
 
-    # SPA catch-all — lowest priority so API routes win.
+    # SPA catch-all — /:code, /, /:code/analytics → client-side router.
     web:
       rule: "PathPrefix(`/`)"
       entryPoints: [web]

@@ -31,19 +31,14 @@ export class UrlController {
     private readonly topK: TopKService,
   ) {}
 
-  // ── Redirect endpoint (/:code) ────────────────────────────────────────
+  // ── Redirect endpoint (/go/:code) — click-through from detail page ──
 
-  @Get(':code')
+  @Get('go/:code')
   async redirect(
     @Param('code') code: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    // Skip API/observability prefixes — only match short codes.
-    if (['api', 'metrics', 'health', 'grafana', 'prometheus'].includes(code)) {
-      return res.status(404).json({ message: 'Not found' });
-    }
-
     const originalUrl = await this.urlService.resolveOriginalUrl(code);
 
     // Record click async — don't block the redirect.
@@ -71,8 +66,8 @@ export class UrlController {
   // ── REST API ─────────────────────────────────────────────────────────
 
   @Post('api/urls')
-  async create(@Body() dto: CreateUrlDto, @Req() req: Request) {
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+  async create(@Body() dto: CreateUrlDto) {
+    const baseUrl = this.baseUrlFromEnv();
     const url = await this.urlService.create(dto, baseUrl);
     return this.toResponse(url, baseUrl);
   }

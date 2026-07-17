@@ -26,10 +26,13 @@ function router() {
   renderHome(app);
 }
 
-// SPA navigation: intercept link clicks
+// SPA navigation: intercept link clicks (but NOT /go/ redirects).
 document.addEventListener('click', (e) => {
   const target = (e.target as HTMLElement).closest('a');
-  if (target && target.host === window.location.host && target.pathname !== window.location.pathname) {
+  if (!target) return;
+  // Let /go/:code links do a full page navigation (302 redirect).
+  if (target.pathname.startsWith('/go/')) return;
+  if (target.host === window.location.host && target.pathname !== window.location.pathname) {
     e.preventDefault();
     history.pushState({}, '', target.href);
     router();
