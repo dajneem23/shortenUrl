@@ -31,15 +31,18 @@ export class UrlController {
     private readonly topK: TopKService,
   ) {}
 
-  // ── Go link (/go/:code) — records click, then shows preview UI ───────
+  // ── Go link (/go/:code) — records click, redirects to original URL ────
 
   @Get('go/:code')
-  goRedirect(
+  async goRedirect(
     @Param('code') code: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    // Record click — fully fire-and-forget, never blocks the redirect.
+    // Resolve from Redis cache (fast) or Postgres fallback.
+    const originalUrl = await this.urlService.resolveOriginalUrl(code);
+
+    // Record click — fire-and-forget, never blocks the redirect.
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const metadata = {
       ipAddress: ip,
@@ -55,10 +58,7 @@ export class UrlController {
     this.urlService.incrementClicks(code).catch(() => {});
     this.topK.recordClick(code).catch(() => {});
 
-    // Redirect immediately to preview page. No await — the SPA /:code page
-    // handles showing "URL Not Found" if the code doesn't exist.
-    const baseUrl = this.baseUrlFromEnv();
-    return res.redirect(HttpStatus.FOUND, `${baseUrl}/${code}`);
+    return res.redirect(HttpStatus.FOUND, originalUrl);
   }
 
   // ── REST API ─────────────────────────────────────────────────────────
