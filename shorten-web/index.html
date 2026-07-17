@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ShortenUrl — URL Shortener</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔗</text></svg>" />
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen">
+  <header class="border-b border-gray-800 bg-gray-900">
+    <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+      <a href="/" class="text-xl font-bold tracking-tight text-indigo-400">ShortenUrl</a>
+      <nav class="text-sm space-x-4">
+        <a href="/" class="text-gray-400 hover:text-white transition">Home</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="app" class="max-w-5xl mx-auto px-4 py-10">
+    <!-- Dynamic content rendered here -->
+  </main>
+
+  <footer class="border-t border-gray-800 py-6 text-center text-sm text-gray-600">
+    ShortenUrl &mdash; Built with Nest.js + Traefik + Tailwind CSS
+  </footer>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+global:
+  scrape_interval: 10s
+
+scrape_configs:
+  # Traefik edge metrics (request rate, latency, status by router/service).
+  - job_name: traefik
+    static_configs:
+      - targets: ["traefik:8080"]
+
+  # NestJS shorten-api exposes prom-client metrics at /metrics.
+  - job_name: shorten-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["shorten-api:3000"]

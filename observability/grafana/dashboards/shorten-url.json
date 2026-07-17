@@ -1,0 +1,138 @@
+{
+  "uid": "shorten-url",
+  "title": "ShortenUrl — URL Shortener",
+  "tags": ["shortenurl", "url-shortener"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Service Up",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "up{instance=~\"shorten-api.*\"}" }
+      ]
+    },
+    {
+      "id": 2, "type": "stat", "title": "URLs Created (total)",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "url_created_total" }
+      ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Total Redirects",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(url_redirects_total)" }
+      ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Redirect Rate (/min)",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqpm" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum(rate(url_redirects_total[1m])) * 60" }
+      ]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Unique IPs (/24)",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {} },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count(count by (ip_prefix) (url_redirects_by_ip_total))" }
+      ]
+    },
+    {
+      "id": 10, "type": "stat", "title": "Unique Countries",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {} },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count(count by (country) (url_redirects_by_country_total))" }
+      ]
+    },
+    {
+      "id": 20, "type": "timeseries", "title": "Redirects / sec (by short code)",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (short_code) (rate(url_redirects_total[1m]))", "legendFormat": "{{short_code}}" }
+      ]
+    },
+    {
+      "id": 21, "type": "timeseries", "title": "API p95 latency (edge)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\"api@.*\"}[5m])))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "id": 22, "type": "timeseries", "title": "HTTP status breakdown (edge)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (code) (rate(traefik_service_requests_total{service=~\"api@.*\"}[1m]))", "legendFormat": "{{code}}" }
+      ]
+    },
+    {
+      "id": 23, "type": "timeseries", "title": "Redirects by Country",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (country) (rate(url_redirects_by_country_total[1m]))", "legendFormat": "{{country}}" }
+      ]
+    },
+    {
+      "id": 30, "type": "timeseries", "title": "Resident memory (RSS)",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "process_resident_memory_bytes{instance=~\"shorten-api.*\"}", "legendFormat": "rss" }
+      ]
+    },
+    {
+      "id": 31, "type": "timeseries", "title": "Event-loop lag",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 21 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "nodejs_eventloop_lag_seconds{instance=~\"shorten-api.*\"}", "legendFormat": "lag" }
+      ]
+    }
+  ]
+}

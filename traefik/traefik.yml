@@ -1,0 +1,28 @@
+# Traefik static configuration — edge router for shortenUrl.
+# File provider sidesteps Docker socket mounts (security win).
+# Routers/services live in ./dynamic/dynamic.yml.
+
+entryPoints:
+  web:
+    address: ":80"
+
+api:
+  dashboard: true
+  insecure: true          # dashboard on :8080 — dev convenience
+
+# Prometheus metrics on :8080/metrics
+metrics:
+  prometheus:
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+log:
+  level: INFO
+
+accessLog: {}

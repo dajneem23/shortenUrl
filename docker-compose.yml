@@ -1,0 +1,104 @@
+# shortenUrl — URL shortener stack behind Traefik.
+#
+#   docker compose up -d --build                     -> core (api + web + db + redis)
+#   docker compose --profile observability up -d     -> + Prometheus + Grafana
+
+name: shortenurl
+
+services:
+  # ── Edge router ────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.5
+    ports:
+      - "80:80"       # public entry point
+      - "8080:8080"   # dashboard (dev only)
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+    restart: unless-stopped
+
+  # ── Datastores ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: shortenurl
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-urlshortener}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shortenurl"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis/redis-stack-server:7.4.0-v1
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ── NestJS backend ─────────────────────────────────────────
+  shorten-api:
+    build: ./shorten-api
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      HOST: ${APP_HOST:-0.0.0.0}
+      PORT: ${APP_PORT:-3000}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-urlshortener}
+      DB_DATABASE: shortenurl
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      BASE_URL: ${BASE_URL:-http://localhost}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  # ── Tailwind CSS frontend ──────────────────────────────────
+  shorten-web:
+    build: ./shorten-web
+    restart: unless-stopped
+
+  # ── Observability (profile-gated) ──────────────────────────
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["observability"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.route-prefix=/prometheus"
+      - "--web.external-url=http://localhost/prometheus"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["observability"]
+    environment:
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana"
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  grafana_data:
+
+networks:
+  default:
+    name: shortenurl

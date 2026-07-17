@@ -1,0 +1,42 @@
+# Traefik dynamic routing — shortenUrl.
+http:
+  routers:
+    # API routes — highest priority so /api wins over SPA catch-all.
+    api:
+      rule: "PathPrefix(`/api`) || PathPrefix(`/metrics`) || PathPrefix(`/health`)"
+      entryPoints: [web]
+      service: api
+
+    # Observability UIs (profile-gated — only reachable when services are up).
+    grafana:
+      rule: "PathPrefix(`/grafana`)"
+      entryPoints: [web]
+      service: grafana
+    prometheus:
+      rule: "PathPrefix(`/prometheus`)"
+      entryPoints: [web]
+      service: prometheus
+
+    # SPA catch-all — lowest priority so API routes win.
+    web:
+      rule: "PathPrefix(`/`)"
+      entryPoints: [web]
+      service: web
+
+  services:
+    api:
+      loadBalancer:
+        servers:
+          - url: "http://shorten-api:3000"
+    web:
+      loadBalancer:
+        servers:
+          - url: "http://shorten-web:80"
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://grafana:3000"
+    prometheus:
+      loadBalancer:
+        servers:
+          - url: "http://prometheus:9090"
