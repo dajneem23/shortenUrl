@@ -1,9 +1,11 @@
 # Traefik dynamic routing — shortenUrl.
 http:
   routers:
-    # API routes — highest priority so /api wins over SPA catch-all.
+    # API: REST, metrics, health, AND short-code redirects (/:code).
+    # PathRegexp matches nanoid-style codes (3-8 chars) so they go to the API
+    # for redirect instead of being caught by the SPA catch-all.
     api:
-      rule: "PathPrefix(`/api`) || PathPrefix(`/metrics`) || PathPrefix(`/health`)"
+      rule: "PathPrefix(`/api`) || PathPrefix(`/metrics`) || PathPrefix(`/health`) || PathRegexp(`^/[a-zA-Z0-9_-]{3,8}$`)"
       entryPoints: [web]
       service: api
 
