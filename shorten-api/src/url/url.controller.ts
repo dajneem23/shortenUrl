@@ -98,8 +98,13 @@ export class UrlController {
   /** Trending URLs — Top-K across sliding windows. */
   @Get('api/urls/trending')
   async trending(@Query('window') window = '1h') {
-    const top = await this.topK.topK(window, 15);
-    return { window, top };
+    try {
+      const top = await this.topK.topK(window, 15);
+      return { window, top };
+    } catch (err: any) {
+      this.logger.error(`Trending failed: ${err.message}`);
+      return { window, top: [] };
+    }
   }
 
   @Get('api/urls/:code')

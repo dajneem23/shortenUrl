@@ -84,6 +84,18 @@ export default async function DetailPage({ params }: Props) {
             &rarr; {url.originalUrl}
           </p>
 
+          {/* QR Code */}
+          <div className="flex justify-center">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url.shortUrl)}`}
+              alt={`QR code for ${url.shortUrl}`}
+              width={180}
+              height={180}
+              className="rounded-lg border border-gray-700 bg-white p-2"
+              loading="lazy"
+            />
+          </div>
+
           <div className="flex items-center justify-center gap-4 flex-wrap">
             <a
               href={`/go/${url.shortCode}`}
