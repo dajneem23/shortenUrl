@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -21,6 +21,8 @@ interface GeoResult {
 
 @Injectable()
 export class AnalyticsService {
+  private readonly logger = new Logger(AnalyticsService.name);
+
   constructor(
     @InjectRepository(Click)
     private readonly clickRepo: Repository<Click>,
@@ -30,10 +32,16 @@ export class AnalyticsService {
     shortCode: string,
     metadata: ClickMetadata,
   ): Promise<void> {
+    this.logger.log(
+      `Recording click for /${shortCode} | ip=${metadata.ipAddress} | ` +
+      `referer=${metadata.referer?.substring(0, 50) || 'direct'} | ` +
+      `ua=${metadata.userAgent?.substring(0, 40) || 'unknown'}`,
+    );
+
     const geo = await this.lookupGeo(metadata.ipAddress);
 
     const click = this.clickRepo.create({
-      urlId: 0, // will be set after URL lookup if needed; we batch or set via urlRepo
+      urlId: 0,
       ipAddress: metadata.ipAddress,
       userAgent: metadata.userAgent,
       referer: metadata.referer,
@@ -41,19 +49,24 @@ export class AnalyticsService {
       city: geo.city,
     });
 
-    // We need the url_id — look it up by short_code.
-    // We do this via a raw query to avoid importing UrlService (circular dep).
     const urlRow = await this.clickRepo.manager.query(
       `SELECT id FROM urls WHERE short_code = $1 LIMIT 1`,
       [shortCode],
     );
 
-    if (urlRow.length === 0) return; // URL not found, skip recording
+    if (urlRow.length === 0) {
+      this.logger.warn(`Click skipped — URL /${shortCode} not found in DB`);
+      return;
+    }
 
     click.urlId = urlRow[0].id;
     await this.clickRepo.save(click);
 
-    // Prometheus metrics
+    this.logger.log(
+      `Click saved: /${shortCode} urlId=${click.urlId} ` +
+      `country=${geo.country || 'unknown'} city=${geo.city || 'unknown'}`,
+    );
+
     trackRedirectByCountry(shortCode, geo.country || 'unknown');
     trackRedirectByIp(metadata.ipAddress);
   }
@@ -118,14 +131,12 @@ export class AnalyticsService {
        LIMIT $2`,
       [urlId, limit],
     );
-    // Anonymise to /24 prefix.
     return rows.map((r: any) => ({
       ipPrefix: this.toPrefix24(r.ip_address),
       count: Number(r.count),
     }));
   }
 
-  /** Approximate count of unique IPs from the clicks table. */
   async uniqueIpCount(urlId: number): Promise<number> {
     const rows = await this.clickRepo.manager.query(
       `SELECT COUNT(DISTINCT ip_address) AS count
@@ -139,20 +150,25 @@ export class AnalyticsService {
   // ── IP Geolocation ───────────────────────────────────────────────────
 
   private async lookupGeo(ip: string): Promise<GeoResult> {
-    // Skip private/localhost IPs.
     if (!ip || ip === 'unknown' || this.isPrivateIp(ip)) {
+      this.logger.debug(`Geo skipped — private IP: ${ip}`);
       return { country: null, city: null };
     }
 
     try {
       const res = await fetch(`http://ip-api.com/json/${ip}?fields=countryCode,city`);
-      if (!res.ok) return { country: null, city: null };
+      if (!res.ok) {
+        this.logger.warn(`Geo lookup failed — ip-api returned ${res.status} for ${ip}`);
+        return { country: null, city: null };
+      }
       const data = await res.json();
+      this.logger.debug(`Geo resolved: ${ip} → ${data.countryCode || '??'}/${data.city || '??'}`);
       return {
         country: data.countryCode || null,
         city: data.city || null,
       };
-    } catch {
+    } catch (err: any) {
+      this.logger.warn(`Geo lookup error for ${ip}: ${err.message}`);
       return { country: null, city: null };
     }
   }

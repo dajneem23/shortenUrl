@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 
 /**
@@ -7,58 +7,39 @@ import Redis from 'ioredis';
  * Uses Redis Stack's `CMS.INCRBY` / `CMS.QUERY` — a C-level implementation
  * with guaranteed error bounds.
  *
- * Default dimensions: width=2000, depth=10
- *   → ε ≈ 0.001, δ ≈ 0.000045 (99.995% confidence)
- *   → ~80 KB per sketch
- *
- * Applications:
- *  1. Click frequency per URL per time window
- *  2. Per-IP click estimation (abuse detection)
+ * Default: width=2000, depth=10 → ε≈0.001, δ≈0.000045 → ~80 KB per sketch
  */
 @Injectable()
 export class CountMinSketchService {
-  // CMS dimensions trade accuracy vs memory.
+  private readonly logger = new Logger(CountMinSketchService.name);
   private readonly WIDTH = 2000;
   private readonly DEPTH = 10;
 
   constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis) {}
 
-  /**
-   * Increment count for an item in a given sketch.
-   * Initialises the sketch with CMS.INITBYDIM on first use.
-   */
   async increment(sketchName: string, item: string, count: number = 1): Promise<void> {
     const key = this.sketchKey(sketchName);
     await this.ensureSketch(key);
 
     await this.redis.call('CMS.INCRBY', key, item, String(count));
+    this.logger.debug(`CMS[${sketchName}]: incremented "${item}" by ${count}`);
 
-    // Set TTL so old sketches auto-expire (14 days).
     await this.redis.expire(key, 60 * 60 * 24 * 14);
   }
 
-  /**
-   * Estimate frequency of an item.
-   * Returns the MIN across all d rows (the CMS guarantee: never underestimates).
-   */
   async estimate(sketchName: string, item: string): Promise<number> {
     const key = this.sketchKey(sketchName);
     try {
       const result = await this.redis.call('CMS.QUERY', key, item);
-      // CMS.QUERY returns an array of d estimates; the CMS guarantee uses MIN.
       if (Array.isArray(result)) {
         return Math.min(...result.map(Number));
       }
       return 0;
     } catch {
-      return 0; // sketch doesn't exist yet
+      return 0;
     }
   }
 
-  /**
-   * Increment AND return the new estimated count.
-   * Single pipeline for atomicity.
-   */
   async incrementAndEstimate(
     sketchName: string,
     item: string,
@@ -67,21 +48,16 @@ export class CountMinSketchService {
     return this.estimate(sketchName, item);
   }
 
-  /** Reset the entire sketch. */
   async reset(sketchName: string): Promise<void> {
     await this.redis.del(this.sketchKey(sketchName));
+    this.logger.log(`CMS sketch reset: ${sketchName}`);
   }
 
-  /**
-   * Estimate clicks per IP for abuse detection.
-   * Uses a per-IP sketch to check if an IP is clicking too much.
-   */
   async estimateIpClicks(ip: string, windowSeconds: number = 3600): Promise<number> {
     const sketchName = `ip:${this.windowLabel(windowSeconds)}`;
     return this.estimate(sketchName, ip);
   }
 
-  /** Record an IP click for abuse tracking. */
   async recordIpClick(ip: string, windowSeconds: number = 3600): Promise<void> {
     const sketchName = `ip:${this.windowLabel(windowSeconds)}`;
     await this.increment(sketchName, ip);
@@ -93,6 +69,7 @@ export class CountMinSketchService {
     try {
       await this.redis.call('CMS.INFO', key);
     } catch {
+      this.logger.log(`Creating CMS sketch: ${key}`);
       await this.redis.call(
         'CMS.INITBYDIM',
         key,

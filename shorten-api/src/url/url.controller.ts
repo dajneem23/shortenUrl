@@ -10,6 +10,7 @@ import {
   Req,
   HttpStatus,
   UseInterceptors,
+  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
@@ -24,6 +25,8 @@ import { trackUniqueVisitor } from '../shared/telemetry/metrics';
 @Controller()
 @UseInterceptors(MetricsInterceptor)
 export class UrlController {
+  private readonly logger = new Logger(UrlController.name);
+
   constructor(
     private readonly urlService: UrlService,
     private readonly analyticsService: AnalyticsService,
@@ -41,6 +44,8 @@ export class UrlController {
   ) {
     // Resolve from Redis cache (fast) or Postgres fallback.
     const originalUrl = await this.urlService.resolveOriginalUrl(code);
+
+    this.logger.log(`Go redirect /${code} → ${originalUrl.substring(0, 60)}...`);
 
     // Record click — fire-and-forget, never blocks the redirect.
     const ip = req.ip || req.socket.remoteAddress || 'unknown';

@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 
 /**
@@ -12,6 +12,7 @@ import Redis from 'ioredis';
  */
 @Injectable()
 export class BloomFilterService {
+  private readonly logger = new Logger(BloomFilterService.name);
   private readonly ERROR_RATE = 0.001;
   private readonly CAPACITY = 100_000;
 
@@ -19,45 +20,49 @@ export class BloomFilterService {
 
   /**
    * Returns `true` if the IP is definitely NEW (not seen before for this URL).
-   * Uses `BF.ADD` which atomically checks AND adds — returns 1 if new, 0 if
-   * possibly already present.
    */
   async isNewIp(shortCode: string, ip: string): Promise<boolean> {
     const key = this.filterKey(shortCode);
     await this.ensureFilter(key);
 
-    // BF.ADD returns 1 if the item was newly added (was NOT present).
-    // It returns 0 if the item MAY already exist.
     const result = await this.redis.call('BF.ADD', key, ip);
-    return result === 1;
+
+    if (result === 1) {
+      this.logger.debug(`Bloom: NEW IP for /${shortCode} (${this.ipPrefix(ip)})`);
+      return true;
+    }
+    this.logger.debug(`Bloom: REPEAT IP for /${shortCode} (${this.ipPrefix(ip)})`);
+    return false;
   }
 
-  /** Reset the Bloom filter for a given short code. */
   async reset(shortCode: string): Promise<void> {
     await this.redis.del(this.filterKey(shortCode));
+    this.logger.log(`Bloom filter reset for /${shortCode}`);
   }
 
   // ── Private helpers ──────────────────────────────────────────────────
 
-  /** Ensure the Bloom filter key exists (create if missing). */
   private async ensureFilter(key: string): Promise<void> {
-    // Check if key already exists by inspecting its type.
     try {
       await this.redis.call('BF.INFO', key);
     } catch {
-      // Key doesn't exist — create it with BF.RESERVE.
+      this.logger.log(`Creating Bloom filter: ${key}`);
       await this.redis.call(
         'BF.RESERVE',
         key,
         String(this.ERROR_RATE),
         String(this.CAPACITY),
       );
-      // Set a TTL so old filters auto-expire (30 days).
       await this.redis.expire(key, 60 * 60 * 24 * 30);
     }
   }
 
   private filterKey(shortCode: string): string {
     return `bf:ip:${shortCode}`;
+  }
+
+  private ipPrefix(ip: string): string {
+    if (!ip || ip === 'unknown') return '??';
+    return ip.includes('.') ? ip.split('.').slice(0, 3).join('.') : ip.substring(0, 7);
   }
 }
