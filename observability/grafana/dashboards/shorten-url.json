@@ -1,16 +1,16 @@
 {
   "uid": "shorten-url",
-  "title": "ShortenUrl — URL Shortener",
-  "tags": ["shortenurl", "url-shortener"],
+  "title": "ShortenUrl — Redirects & Analytics",
+  "tags": ["shortenurl", "url-shortener", "redirects"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "time": { "from": "now-6h", "to": "now" },
   "refresh": "30s",
   "panels": [
     {
       "id": 1, "type": "stat", "title": "Service Up",
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "gridPos": { "h": 3, "w": 3, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
@@ -25,8 +25,8 @@
       ]
     },
     {
-      "id": 2, "type": "stat", "title": "URLs Created (total)",
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "id": 2, "type": "stat", "title": "URLs Created",
+      "gridPos": { "h": 3, "w": 3, "x": 3, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "short" } },
       "targets": [
@@ -36,17 +36,27 @@
     },
     {
       "id": 3, "type": "stat", "title": "Total Redirects",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "gridPos": { "h": 3, "w": 3, "x": 6, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "short" } },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "blue", "value": 0 }] }, "unit": "short" } },
       "targets": [
         { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
           "expr": "sum(url_redirects_total)" }
       ]
     },
     {
-      "id": 4, "type": "stat", "title": "Redirect Rate (/min)",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "id": 4, "type": "stat", "title": "Redirects Today",
+      "gridPos": { "h": 3, "w": 3, "x": 9, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [{ "color": "green", "value": 0 }] }, "unit": "short" } },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "increase(sum(url_redirects_total)[24h])" }
+      ]
+    },
+    {
+      "id": 5, "type": "stat", "title": "Redirects/min",
+      "gridPos": { "h": 3, "w": 3, "x": 12, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqpm" } },
       "targets": [
@@ -55,18 +65,18 @@
       ]
     },
     {
-      "id": 5, "type": "stat", "title": "Unique IPs (/24)",
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "id": 6, "type": "stat", "title": "Unique Visitors",
+      "gridPos": { "h": 3, "w": 3, "x": 15, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": {} },
+      "fieldConfig": { "defaults": { "unit": "short" } },
       "targets": [
         { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "count(count by (ip_prefix) (url_redirects_by_ip_total))" }
+          "expr": "sum(unique_visitors_total)" }
       ]
     },
     {
-      "id": 10, "type": "stat", "title": "Unique Countries",
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "id": 7, "type": "stat", "title": "Unique Countries",
+      "gridPos": { "h": 3, "w": 3, "x": 18, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": {} },
       "targets": [
@@ -75,38 +85,38 @@
       ]
     },
     {
-      "id": 20, "type": "timeseries", "title": "Redirects / sec (by short code)",
-      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 4 },
+      "id": 8, "type": "stat", "title": "Unique IPs (/24)",
+      "gridPos": { "h": 3, "w": 3, "x": 21, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": {} },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "count(count by (ip_prefix) (url_redirects_by_ip_total))" }
+      ]
+    },
+    {
+      "id": 20, "type": "timeseries", "title": "Redirects/sec by URL",
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 3 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
       "targets": [
         { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (short_code) (rate(url_redirects_total[1m]))", "legendFormat": "{{short_code}}" }
+          "expr": "sum by (short_code) (rate(url_redirects_total[1m]))", "legendFormat": "/{{short_code}}" }
       ]
     },
     {
-      "id": 21, "type": "timeseries", "title": "API p95 latency (edge)",
-      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 4 },
+      "id": 21, "type": "timeseries", "title": "Total Redirects by URL (cumulative)",
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 3 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
       "targets": [
         { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\"api@.*\"}[5m])))", "legendFormat": "p95" }
+          "expr": "sum by (short_code) (url_redirects_total)", "legendFormat": "/{{short_code}}" }
       ]
     },
     {
-      "id": 22, "type": "timeseries", "title": "HTTP status breakdown (edge)",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
-      "targets": [
-        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "sum by (code) (rate(traefik_service_requests_total{service=~\"api@.*\"}[1m]))", "legendFormat": "{{code}}" }
-      ]
-    },
-    {
-      "id": 23, "type": "timeseries", "title": "Redirects by Country",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 13 },
+      "id": 22, "type": "timeseries", "title": "Redirects by Country",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 13 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
       "targets": [
@@ -115,8 +125,38 @@
       ]
     },
     {
-      "id": 30, "type": "timeseries", "title": "Resident memory (RSS)",
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 21 },
+      "id": 23, "type": "timeseries", "title": "API p95 Latency (edge)",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traefik_service_request_duration_seconds_bucket{service=~\"api@.*\"}[5m])))", "legendFormat": "p95" }
+      ]
+    },
+    {
+      "id": 24, "type": "timeseries", "title": "HTTP Status Breakdown",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (code) (rate(traefik_service_requests_total{service=~\"api@.*\"}[1m]))", "legendFormat": "{{code}}" }
+      ]
+    },
+    {
+      "id": 25, "type": "timeseries", "title": "Unique Visitors by URL",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "targets": [
+        { "refId": "A", "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (short_code) (unique_visitors_total)", "legendFormat": "/{{short_code}}" }
+      ]
+    },
+    {
+      "id": 30, "type": "timeseries", "title": "Resident Memory (RSS)",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 29 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
       "targets": [
@@ -125,8 +165,8 @@
       ]
     },
     {
-      "id": 31, "type": "timeseries", "title": "Event-loop lag",
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 21 },
+      "id": 31, "type": "timeseries", "title": "Event-loop Lag",
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 29 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
       "targets": [

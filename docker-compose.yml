@@ -72,10 +72,9 @@ services:
     build: ./shorten-web
     restart: unless-stopped
 
-  # ── Observability (profile-gated) ──────────────────────────
+  # ── Observability ──────────────────────────────────────────
   prometheus:
     image: prom/prometheus:v2.54.1
-    profiles: ["observability"]
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     command:
@@ -86,7 +85,6 @@ services:
 
   grafana:
     image: grafana/grafana:11.2.0
-    profiles: ["observability"]
     environment:
       GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"

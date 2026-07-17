@@ -6,11 +6,17 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-# ── Serve stage ──
-FROM httpd:2.4-alpine
-COPY --from=build /app/dist /usr/local/apache2/htdocs/
-COPY httpd-rewrite.conf /usr/local/apache2/conf/conf.d/rewrite.conf
-# Load mod_dir (for FallbackResource) and include our config.
-RUN sed -i 's|#LoadModule dir_module|LoadModule dir_module|' /usr/local/apache2/conf/httpd.conf \
- && echo "Include conf/conf.d/rewrite.conf" >> /usr/local/apache2/conf/httpd.conf
+# ── Prod stage (Next.js standalone) ──
+FROM node:22-alpine
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=80
+
+COPY --from=build /app/public ./public
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+
 EXPOSE 80
+CMD ["node", "server.js"]
