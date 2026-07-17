@@ -9,9 +9,9 @@ services:
   # ── Edge router ────────────────────────────────────────────
   traefik:
     image: traefik:v3.5
-    ports:
-      - "80:80"       # public entry point
-      - "8080:8080"   # dashboard (dev only)
+    # ports:
+      # - "80:80"       # public entry point
+      # - "8080:8080"   # dashboard (dev only)
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
