@@ -2,8 +2,11 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { getUrl, type UrlItem } from '@/lib/api';
 import { DetailClient } from './detail-client';
+import { DetailPageSchema } from '@/components/JsonLd';
 
 export const dynamic = 'force-dynamic';
+
+const SITE_URL = 'https://short.sugoiweb3.uk';
 
 interface Props {
   params: Promise<{ code: string }>;
@@ -14,17 +17,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   try {
     const url = await getUrl(code);
+    const pageUrl = `${SITE_URL}/${code}`;
     const title = `${url.shortCode} — Short Link Preview`;
-    const description = `This short link redirects to: ${url.originalUrl.substring(0, 160)}`;
+    const description = `Short link /${url.shortCode} redirects to ${url.originalUrl.substring(0, 100)}. ${url.clicks} clicks tracked.`;
 
     return {
       title,
       description,
+      alternates: { canonical: pageUrl },
       openGraph: {
         title,
         description,
         type: 'article',
-        url: `/${code}`,
+        url: pageUrl,
+        siteName: 'ShortenUrl',
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
       },
     };
   } catch {
@@ -45,11 +56,22 @@ export default async function DetailPage({ params }: Props) {
     return <NotFound code={code} />;
   }
 
+  const pageUrl = `${SITE_URL}/${code}`;
+
   return (
-    <div className="space-y-6">
-      <Link href="/" className="text-gray-400 hover:text-white text-sm">
-        &larr; Back
-      </Link>
+    <>
+      <DetailPageSchema
+        pageUrl={pageUrl}
+        originalUrl={url.originalUrl}
+        shortCode={url.shortCode}
+        title={`${url.shortCode} — Short Link Preview`}
+        description={`Short link /${url.shortCode} redirects to ${url.originalUrl.substring(0, 100)}. ${url.clicks} clicks tracked.`}
+        datePublished={url.createdAt}
+      />
+      <div className="space-y-6">
+        <Link href="/" className="text-gray-400 hover:text-white text-sm">
+          &larr; Back
+        </Link>
 
       <div className="space-y-8">
         {/* URL Card */}
@@ -132,6 +154,7 @@ export default async function DetailPage({ params }: Props) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
