@@ -9,7 +9,14 @@ import Redis from 'ioredis';
       useFactory: () => {
         const host = process.env.REDIS_HOST || 'redis';
         const port = parseInt(process.env.REDIS_PORT || '6379', 10);
-        return new Redis({ host, port, lazyConnect: true });
+        return new Redis({
+          host,
+          port,
+          maxRetriesPerRequest: null,
+          retryStrategy(times) {
+            return Math.min(times * 200, 3000);
+          },
+        });
       },
     },
   ],
