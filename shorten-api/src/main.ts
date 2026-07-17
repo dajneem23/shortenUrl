@@ -12,8 +12,9 @@ async function bootstrap() {
     cors: true,
   });
 
-  // Trust the Traefik proxy so rate-limit + client-IP detection work correctly.
-  app.set('trust proxy', 1);
+  // Trust all proxy hops (Cloudflare → main Traefik → our Traefik → API).
+  // Needed so req.ip returns the real client IP, not a Docker-internal one.
+  app.set('trust proxy', true);
 
   app.use(helmet());
   app.use(
