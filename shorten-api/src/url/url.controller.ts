@@ -47,8 +47,16 @@ export class UrlController {
 
     this.logger.log(`Go redirect /${code} → ${originalUrl.substring(0, 60)}...`);
 
+    // Resolve real client IP through proxy chain.
+    // Cloudflare → main Traefik → our Traefik → API.
+    // CF-Connecting-IP is the most reliable source.
+    const ip = (req.headers['cf-connecting-ip'] as string)
+      || (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      || req.ip
+      || req.socket.remoteAddress
+      || 'unknown';
+
     // Record click — fire-and-forget, never blocks the redirect.
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const metadata = {
       ipAddress: ip,
       userAgent: req.headers['user-agent'] || null,
