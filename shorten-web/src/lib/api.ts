@@ -1,11 +1,28 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+// Server-side: use internal Docker hostname to reach the API.
+// Client-side: use relative URLs (Traefik routes /api/* to the API).
+const isServer = typeof window === 'undefined';
+const API_BASE = isServer
+  ? (process.env.API_URL || 'http://shorten-api:3000')
+  : '';
+
+const log = (msg: string, data?: Record<string, unknown>) => {
+  if (isServer) {
+    console.log(`[api:server] ${msg}`, data ? JSON.stringify(data) : '');
+  } else {
+    console.debug(`[api:client] ${msg}`, data || '');
+  }
+};
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}/api${path}`;
+  const method = options?.method || 'GET';
+
+  log(`${method} ${url}`);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
 
+  const start = Date.now();
   try {
     const res = await fetch(url, {
       ...options,
@@ -16,11 +33,20 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
       signal: controller.signal,
     });
 
+    const ms = Date.now() - start;
+    log(`${method} ${url} → ${res.status} (${ms}ms)`);
+
     if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      log(`ERROR ${method} ${url} → ${res.status}`, { body: body.substring(0, 200) });
       throw new Error(`API error: ${res.status}`);
     }
 
     return res.json();
+  } catch (err: any) {
+    const ms = Date.now() - start;
+    log(`FAIL ${method} ${url} (${ms}ms)`, { error: err.message });
+    throw err;
   } finally {
     clearTimeout(timeout);
   }

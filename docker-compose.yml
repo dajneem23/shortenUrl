@@ -67,9 +67,11 @@ services:
       redis: { condition: service_healthy }
     restart: unless-stopped
 
-  # ── Tailwind CSS frontend ──────────────────────────────────
+  # ── Next.js frontend ───────────────────────────────────────
   shorten-web:
     build: ./shorten-web
+    environment:
+      API_URL: http://shorten-api:3000
     restart: unless-stopped
 
   # ── Observability ──────────────────────────────────────────
