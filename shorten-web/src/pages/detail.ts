@@ -23,7 +23,7 @@ export async function renderDetail(container: HTMLElement, code: string) {
             → ${escapeHtml(url.originalUrl)}
           </p>
           <div class="flex items-center justify-center gap-4 flex-wrap">
-            <a href="${escapeHtml(url.originalUrl)}" target="_blank" rel="noopener noreferrer" class="rounded-lg bg-emerald-600 px-8 py-3 text-base font-bold text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-900/30">
+            <a href="/go/${url.shortCode}" class="rounded-lg bg-emerald-600 px-8 py-3 text-base font-bold text-white hover:bg-emerald-500 transition shadow-lg shadow-emerald-900/30">
               🚀 Visit Link
             </a>
             <button id="copy-detail-btn" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">

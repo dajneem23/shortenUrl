@@ -31,18 +31,18 @@ export class UrlController {
     private readonly topK: TopKService,
   ) {}
 
-  // ── Go link (/go/:code) — shows preview UI with click tracking ──────
+  // ── Go link (/go/:code) — records click, then shows preview UI ───────
 
   @Get('go/:code')
-  async goToPreview(
+  async goRedirect(
     @Param('code') code: string,
     @Req() req: Request,
     @Res() res: Response,
   ) {
-    // Resolve to verify the URL exists.
+    // Verify the URL exists.
     await this.urlService.resolveOriginalUrl(code);
 
-    // Record click async (don't block the redirect).
+    // Record click — full analytics tracking.
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const metadata = {
       ipAddress: ip,
@@ -58,8 +58,8 @@ export class UrlController {
     this.urlService.incrementClicks(code).catch(() => {});
     this.topK.recordClick(code).catch(() => {});
 
-    // Redirect to the preview/detail page — user sees the URL info
-    // before clicking "Visit Link" to go to the original URL.
+    // Redirect to preview page — user sees URL info + analytics,
+    // then clicks "Visit Link" to go to the original URL.
     const baseUrl = this.baseUrlFromEnv();
     return res.redirect(HttpStatus.FOUND, `${baseUrl}/${code}`);
   }
@@ -142,7 +142,7 @@ export class UrlController {
       id: url.id,
       shortCode: url.shortCode,
       originalUrl: url.originalUrl,
-      shortUrl: `${baseUrl}/${url.shortCode}`,
+      shortUrl: `${baseUrl}/go/${url.shortCode}`,
       clicks: url.clicks,
       createdAt: url.createdAt,
       expiresAt: url.expiresAt,
